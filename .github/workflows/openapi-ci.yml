@@ -22,3 +22,5 @@ jobs:
         run: |
           npm i -g @apidevtools/swagger-cli@4
           swagger-cli validate openapi/openapi.yaml
+
+# Lab01 CI test
