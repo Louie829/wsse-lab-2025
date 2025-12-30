@@ -1,18 +1,20 @@
 openapi: "3.0.0"
+
 info:
-  title: "Hello API"
-  version: "0.1.0"
+  title: "Student Enrollment API"
+  version: "0.2.0"
+  description: "API for student enrollment with Cognito OAuth2 scopes."
 
 servers:
   - url: "https://api.example.edu/api/v1"
-    description: "Production"
+    description: "Mock server SRU + version"
 
 paths:
   /health:
     get:
       summary: "Health check"
-      description: "服務是否正常"
-      security: []
+      description: "服務是否正常（此端點允許匿名呼叫）"
+      security: []   # 覆寫全域，不需 OAuth2
       responses:
         "200":
           description: "OK"
@@ -24,3 +26,97 @@ paths:
                   status:
                     type: string
                     example: "ok"
+
+  /students:
+    get:
+      summary: "List students"
+      description: "需要 students.read scope"
+      responses:
+        "200":
+          description: "Success - students list returned."
+
+    post:
+      summary: "Create student"
+      description: "需要 students.write scope"
+      security:
+        - CognitoOAuth2: [students.write]   # 覆寫，只需 write 權限
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentCreate"
+      responses:
+        "201":
+          description: "Student created"
+          headers:
+            Location:
+              description: "URL of created resource"
+              schema:
+                type: string
+                example: "/api/v1/students/102"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "400":
+          description: "Invalid input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    CognitoOAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:   # Lab使用 PKCE + Authorization Code
+          authorizationUrl: "https://<domain>.auth.<region>.amazoncognito.com/oauth2/authorize"
+          tokenUrl:         "https://<domain>.auth.<region>.amazoncognito.com/oauth2/token"
+          scopes:
+            students.read:  "Read student data"
+            students.write: "Create/modify student data"
+
+  schemas:
+    Student:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 102
+        name:
+          type: string
+          example: "Alice"
+        email:
+          type: string
+          format: email
+          example: "alice@example.com"
+      required: [id, name, email]
+
+    StudentCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Bob"
+        email:
+          type: string
+          format: email
+          example: "bob@example.com"
+      required: [name, email]
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "BadRequest"
+        message:
+          type: string
+          example: "Invalid request payload"
+      required: [code, message]
+
+# 🌎 全域預設至少需具備 read scope
+security:
+  - CognitoOAuth2: [students.read]
